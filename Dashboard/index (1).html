@@ -1,0 +1,445 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SOC Alert Triage Copilot</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg-deep:#0a0f1e;
+    --bg-panel:#101830;
+    --bg-panel-2:#152040;
+    --border:#22304f;
+    --border-soft:#1a2540;
+    --text-hi:#e8edf9;
+    --text-mid:#8d9bc0;
+    --text-low:#5a6789;
+    --accent:#5b8def;
+    --critical:#f0475d;
+    --high:#ff9a4d;
+    --medium:#f2c94c;
+    --low:#33d69f;
+  }
+
+  *{box-sizing:border-box; margin:0; padding:0;}
+
+  body{
+    background:
+      radial-gradient(circle at 15% 0%, rgba(91,141,239,0.08), transparent 40%),
+      radial-gradient(circle at 85% 100%, rgba(51,214,159,0.06), transparent 45%),
+      var(--bg-deep);
+    color:var(--text-hi);
+    font-family:'Inter', sans-serif;
+    min-height:100vh;
+    padding:32px 24px 64px;
+  }
+
+  .mono{ font-family:'JetBrains Mono', monospace; }
+
+  /* ---------- Header ---------- */
+  .header{
+    max-width:1180px;
+    margin:0 auto 28px;
+    display:flex;
+    justify-content:space-between;
+    align-items:flex-end;
+    flex-wrap:wrap;
+    gap:16px;
+  }
+
+  .eyebrow{
+    font-family:'JetBrains Mono', monospace;
+    font-size:11px;
+    letter-spacing:2px;
+    color:var(--accent);
+    text-transform:uppercase;
+    margin-bottom:8px;
+    display:flex;
+    align-items:center;
+    gap:8px;
+  }
+
+  .pulse-dot{
+    width:7px; height:7px; border-radius:50%;
+    background:var(--low);
+    box-shadow:0 0 0 0 rgba(51,214,159,0.7);
+    animation:pulse 2s infinite;
+  }
+  @keyframes pulse{
+    0%{ box-shadow:0 0 0 0 rgba(51,214,159,0.5); }
+    70%{ box-shadow:0 0 0 6px rgba(51,214,159,0); }
+    100%{ box-shadow:0 0 0 0 rgba(51,214,159,0); }
+  }
+
+  h1{
+    font-size:28px;
+    font-weight:800;
+    letter-spacing:-0.02em;
+  }
+  h1 span{ color:var(--text-mid); font-weight:500; }
+
+  .meta{
+    text-align:right;
+    font-size:12px;
+    color:var(--text-low);
+  }
+  .meta .val{ color:var(--text-mid); font-family:'JetBrains Mono', monospace; }
+
+  /* ---------- Threat pulse bar ---------- */
+  .pulse-panel{
+    max-width:1180px;
+    margin:0 auto 20px;
+    background:var(--bg-panel);
+    border:1px solid var(--border-soft);
+    border-radius:14px;
+    padding:20px 22px;
+  }
+
+  .pulse-label{
+    display:flex;
+    justify-content:space-between;
+    font-size:12px;
+    color:var(--text-mid);
+    margin-bottom:10px;
+  }
+  .pulse-label b{ color:var(--text-hi); font-weight:600; }
+
+  .pulse-bar{
+    display:flex;
+    height:10px;
+    border-radius:6px;
+    overflow:hidden;
+    background:var(--bg-panel-2);
+  }
+  .pulse-seg{
+    height:100%;
+    width:0%;
+    transition:width 1s cubic-bezier(.2,.8,.2,1);
+  }
+
+  .pulse-legend{
+    display:flex;
+    gap:22px;
+    margin-top:14px;
+    flex-wrap:wrap;
+  }
+  .legend-item{
+    display:flex;
+    align-items:center;
+    gap:7px;
+    font-size:12px;
+    color:var(--text-mid);
+  }
+  .legend-dot{ width:8px; height:8px; border-radius:50%; }
+  .legend-item .count{ font-family:'JetBrains Mono', monospace; color:var(--text-hi); font-weight:600; }
+
+  /* ---------- Controls ---------- */
+  .controls{
+    max-width:1180px;
+    margin:0 auto 18px;
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    flex-wrap:wrap;
+    gap:12px;
+  }
+
+  .filters{ display:flex; gap:8px; flex-wrap:wrap; }
+  .filter-btn{
+    font-family:'JetBrains Mono', monospace;
+    font-size:12px;
+    padding:7px 14px;
+    border-radius:20px;
+    border:1px solid var(--border);
+    background:transparent;
+    color:var(--text-mid);
+    cursor:pointer;
+    transition:all .15s ease;
+  }
+  .filter-btn:hover{ border-color:var(--accent); color:var(--text-hi); }
+  .filter-btn.active{ background:var(--accent); border-color:var(--accent); color:#0a0f1e; font-weight:600; }
+
+  .search{
+    font-family:'Inter', sans-serif;
+    font-size:13px;
+    padding:9px 14px;
+    border-radius:20px;
+    border:1px solid var(--border);
+    background:var(--bg-panel);
+    color:var(--text-hi);
+    min-width:220px;
+    outline:none;
+  }
+  .search::placeholder{ color:var(--text-low); }
+  .search:focus{ border-color:var(--accent); }
+
+  /* ---------- Alert list ---------- */
+  .list{
+    max-width:1180px;
+    margin:0 auto;
+    display:flex;
+    flex-direction:column;
+    gap:10px;
+  }
+
+  .row{
+    background:var(--bg-panel);
+    border:1px solid var(--border-soft);
+    border-left:4px solid var(--low);
+    border-radius:10px;
+    padding:16px 18px;
+    display:grid;
+    grid-template-columns:100px 1fr 200px;
+    gap:16px;
+    align-items:start;
+    opacity:0;
+    transform:translateY(6px);
+    animation:rise .4s ease forwards;
+  }
+  @keyframes rise{ to{ opacity:1; transform:translateY(0); } }
+
+  .row.critical{ border-left-color:var(--critical); }
+  .row.high{ border-left-color:var(--high); }
+  .row.medium{ border-left-color:var(--medium); }
+  .row.low{ border-left-color:var(--low); }
+
+  .row:hover{ background:var(--bg-panel-2); }
+
+  .col-badge{ display:flex; flex-direction:column; gap:6px; }
+  .badge{
+    font-family:'JetBrains Mono', monospace;
+    font-size:11px;
+    font-weight:700;
+    letter-spacing:0.5px;
+    padding:4px 9px;
+    border-radius:6px;
+    width:fit-content;
+    text-transform:uppercase;
+  }
+  .badge.critical{ background:rgba(240,71,93,0.15); color:var(--critical); }
+  .badge.high{ background:rgba(255,154,77,0.15); color:var(--high); }
+  .badge.medium{ background:rgba(242,201,76,0.15); color:var(--medium); }
+  .badge.low{ background:rgba(51,214,159,0.15); color:var(--low); }
+
+  .alert-id{ font-family:'JetBrains Mono', monospace; font-size:11px; color:var(--text-low); }
+
+  .col-main .type{ font-weight:600; font-size:14px; margin-bottom:4px; }
+  .col-main .desc{ font-size:13px; color:var(--text-mid); margin-bottom:8px; line-height:1.5; }
+  .col-main .reason{
+    font-size:12.5px;
+    color:var(--text-mid);
+    background:var(--bg-panel-2);
+    border:1px solid var(--border-soft);
+    border-radius:8px;
+    padding:9px 12px;
+    line-height:1.5;
+  }
+  .col-main .reason b{ color:var(--text-hi); }
+
+  .mitre-tag{
+    display:inline-block;
+    font-family:'JetBrains Mono', monospace;
+    font-size:10.5px;
+    color:var(--accent);
+    background:rgba(91,141,239,0.12);
+    border:1px solid rgba(91,141,239,0.3);
+    padding:2px 8px;
+    border-radius:5px;
+    margin-bottom:8px;
+  }
+
+  .col-meta{
+    text-align:right;
+    font-family:'JetBrains Mono', monospace;
+    font-size:11.5px;
+    color:var(--text-low);
+    display:flex;
+    flex-direction:column;
+    gap:5px;
+  }
+  .col-meta .ip{ color:var(--text-mid); }
+
+  .empty{
+    text-align:center;
+    padding:60px 20px;
+    color:var(--text-low);
+    font-family:'JetBrains Mono', monospace;
+    font-size:13px;
+  }
+
+  footer{
+    max-width:1180px;
+    margin:32px auto 0;
+    text-align:center;
+    font-size:11px;
+    color:var(--text-low);
+    font-family:'JetBrains Mono', monospace;
+  }
+
+  @media (max-width:720px){
+    .row{ grid-template-columns:1fr; }
+    .col-meta{ flex-direction:row; text-align:left; flex-wrap:wrap; }
+  }
+</style>
+</head>
+<body>
+
+  <div class="header">
+    <div>
+      <div class="eyebrow"><span class="pulse-dot"></span> LIVE MONITORING</div>
+      <h1>SOC Alert Triage <span>Copilot</span></h1>
+    </div>
+    <div class="meta">
+      Source: <span class="val" id="apiSource">localhost:5000</span><br>
+      Last sync: <span class="val" id="lastSync">--</span>
+    </div>
+  </div>
+
+  <div class="pulse-panel">
+    <div class="pulse-label">
+      <span><b id="totalCount">0</b> alerts triaged this session</span>
+      <span id="pulseSummary">-- </span>
+    </div>
+    <div class="pulse-bar">
+      <div class="pulse-seg" id="segCritical" style="background:var(--critical);"></div>
+      <div class="pulse-seg" id="segHigh" style="background:var(--high);"></div>
+      <div class="pulse-seg" id="segMedium" style="background:var(--medium);"></div>
+      <div class="pulse-seg" id="segLow" style="background:var(--low);"></div>
+    </div>
+    <div class="pulse-legend">
+      <div class="legend-item"><span class="legend-dot" style="background:var(--critical);"></span>Critical <span class="count" id="cCritical">0</span></div>
+      <div class="legend-item"><span class="legend-dot" style="background:var(--high);"></span>High <span class="count" id="cHigh">0</span></div>
+      <div class="legend-item"><span class="legend-dot" style="background:var(--medium);"></span>Medium <span class="count" id="cMedium">0</span></div>
+      <div class="legend-item"><span class="legend-dot" style="background:var(--low);"></span>Low <span class="count" id="cLow">0</span></div>
+    </div>
+  </div>
+
+  <div class="controls">
+    <div class="filters" id="filters">
+      <button class="filter-btn active" data-filter="All">All</button>
+      <button class="filter-btn" data-filter="Critical">Critical</button>
+      <button class="filter-btn" data-filter="High">High</button>
+      <button class="filter-btn" data-filter="Medium">Medium</button>
+      <button class="filter-btn" data-filter="Low">Low</button>
+    </div>
+    <input class="search" id="search" type="text" placeholder="Search IP, type, or description…">
+  </div>
+
+  <div class="list" id="list"></div>
+
+  <footer>SOC ALERT TRIAGE COPILOT — RULE-BASED TRIAGE ENGINE v1 · MITRE ATT&CK MAPPED</footer>
+
+<script>
+  // Point this at your Flask API. Change to your Render URL once deployed,
+  // e.g. "https://your-project.onrender.com/alerts"
+  const API_URL = "http://localhost:5000/alerts";
+
+  // Fallback data so the dashboard still looks complete even if the API
+  // isn't running (e.g. when just opening this file to take a screenshot).
+  const DEMO_DATA = [
+    {alert_id:1,timestamp:"2026-07-30 09:01:12",source_ip:"192.168.1.45",alert_type:"Login Failure",description:"Failed login x5 from same IP in 1 min",risk_label:"High",mitre_id:"T1110 - Brute Force",reason:"5 failed logins in a short window is suspicious and matches brute force behavior."},
+    {alert_id:2,timestamp:"2026-07-30 09:02:30",source_ip:"10.0.0.12",alert_type:"Login Success",description:"Successful login from known device",risk_label:"Low",mitre_id:"N/A",reason:"This matches normal, expected user or system behavior."},
+    {alert_id:7,timestamp:"2026-07-30 09:14:55",source_ip:"66.29.10.7",alert_type:"Malware Alert",description:"Suspicious executable download detected",risk_label:"Critical",mitre_id:"T1204 - User Execution",reason:"A known malicious file or signature was detected, indicating a likely malware delivery attempt."},
+    {alert_id:11,timestamp:"2026-07-30 09:25:19",source_ip:"203.0.113.9",alert_type:"Data Exfiltration",description:"Large outbound data transfer to unknown external IP",risk_label:"Critical",mitre_id:"T1041 - Exfiltration Over C2 Channel",reason:"Large or repeated outbound transfers to an unknown destination indicate possible data theft."},
+    {alert_id:3,timestamp:"2026-07-30 09:05:44",source_ip:"45.33.10.2",alert_type:"Port Scan",description:"Multiple port scan attempts detected from external IP",risk_label:"Medium",mitre_id:"T1046 - Network Service Discovery",reason:"Scanning multiple ports is a common reconnaissance step before an attack."},
+  ];
+
+  let allAlerts = [];
+  let activeFilter = "All";
+  let searchTerm = "";
+
+  async function loadAlerts(){
+    try{
+      const res = await fetch(API_URL, { cache:"no-store" });
+      if(!res.ok) throw new Error("bad response");
+      allAlerts = await res.json();
+      document.getElementById("apiSource").textContent = new URL(API_URL).host;
+    }catch(err){
+      allAlerts = DEMO_DATA;
+      document.getElementById("apiSource").textContent = "demo data (API offline)";
+    }
+    document.getElementById("lastSync").textContent = new Date().toLocaleTimeString();
+    render();
+  }
+
+  function render(){
+    const counts = { Critical:0, High:0, Medium:0, Low:0 };
+    allAlerts.forEach(a => { if(counts[a.risk_label] !== undefined) counts[a.risk_label]++; });
+    const total = allAlerts.length || 1;
+
+    document.getElementById("totalCount").textContent = allAlerts.length;
+    document.getElementById("cCritical").textContent = counts.Critical;
+    document.getElementById("cHigh").textContent = counts.High;
+    document.getElementById("cMedium").textContent = counts.Medium;
+    document.getElementById("cLow").textContent = counts.Low;
+
+    document.getElementById("segCritical").style.width = (counts.Critical/total*100)+"%";
+    document.getElementById("segHigh").style.width = (counts.High/total*100)+"%";
+    document.getElementById("segMedium").style.width = (counts.Medium/total*100)+"%";
+    document.getElementById("segLow").style.width = (counts.Low/total*100)+"%";
+
+    const pct = Math.round((counts.Critical+counts.High)/total*100);
+    document.getElementById("pulseSummary").textContent = pct + "% flagged as needing analyst attention";
+
+    const list = document.getElementById("list");
+    list.innerHTML = "";
+
+    const filtered = allAlerts.filter(a=>{
+      const matchesFilter = activeFilter === "All" || a.risk_label === activeFilter;
+      const haystack = (a.alert_type+" "+a.description+" "+a.source_ip).toLowerCase();
+      const matchesSearch = haystack.includes(searchTerm.toLowerCase());
+      return matchesFilter && matchesSearch;
+    });
+
+    if(filtered.length === 0){
+      list.innerHTML = `<div class="empty">No alerts match this filter — try clearing your search or selecting "All".</div>`;
+      return;
+    }
+
+    filtered.forEach((a, i) => {
+      const sev = a.risk_label.toLowerCase();
+      const row = document.createElement("div");
+      row.className = `row ${sev}`;
+      row.style.animationDelay = (i*0.03)+"s";
+      row.innerHTML = `
+        <div class="col-badge">
+          <span class="badge ${sev}">${a.risk_label}</span>
+          <span class="alert-id">ALERT #${String(a.alert_id).padStart(3,'0')}</span>
+        </div>
+        <div class="col-main">
+          ${a.mitre_id && a.mitre_id !== "N/A" ? `<span class="mitre-tag">${a.mitre_id}</span><br>` : ""}
+          <div class="type">${a.alert_type}</div>
+          <div class="desc">${a.description}</div>
+          <div class="reason"><b>Why:</b> ${a.reason}</div>
+        </div>
+        <div class="col-meta">
+          <span class="ip">${a.source_ip}</span>
+          <span>${a.timestamp}</span>
+        </div>
+      `;
+      list.appendChild(row);
+    });
+  }
+
+  document.getElementById("filters").addEventListener("click", (e)=>{
+    if(e.target.classList.contains("filter-btn")){
+      document.querySelectorAll(".filter-btn").forEach(b=>b.classList.remove("active"));
+      e.target.classList.add("active");
+      activeFilter = e.target.dataset.filter;
+      render();
+    }
+  });
+
+  document.getElementById("search").addEventListener("input", (e)=>{
+    searchTerm = e.target.value;
+    render();
+  });
+
+  loadAlerts();
+  setInterval(loadAlerts, 15000); // auto-refresh every 15s, like a real SOC console
+</script>
+
+</body>
+</html>
