@@ -120,15 +120,18 @@ Open `dashboard/index.html` in your browser while the API is running — it will
 
 **Analyst Dashboard — Overview**
 
-![Dashboard overview](screenshots/dashboard-overview.png)
+<img width="1366" height="681" alt="Screenshot 2026-07-30 134822" src="https://github.com/user-attachments/assets/fa9fe964-aba0-4fb0-8e48-234097c61275" />
+
 
 **Analyst Dashboard — Alert List with MITRE Mapping**
 
-![Dashboard alert list](screenshots/dashboard-alert-list.png)
+<img width="1366" height="687" alt="Screenshot 2026-07-30 134910" src="https://github.com/user-attachments/assets/461c332a-62d4-49d6-8b7b-76eaac0a960a" />
+
 
 **Backend API — Raw Classified Output**
 
-![Backend API response](screenshots/backend-api-response.png)
+<img width="1366" height="768" alt="image" src="https://github.com/user-attachments/assets/b2b55c83-3748-4d42-b91b-0e3d749c86a9" />
+
 
 ---
 
