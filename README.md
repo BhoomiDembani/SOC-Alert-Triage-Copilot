@@ -157,4 +157,4 @@ Open `dashboard/index.html` in your browser while the API is running — it will
 
 **Bhoomi Dembani**
 BCA Student — Cybersecurity & Cloud Computing
-[LinkedIn](#) • [GitHub](#)
+[LinkedIn](www.linkedin.com/in/bhoomi-dembani-87305b329) • [GitHub](bhumi1406d7-spec)
